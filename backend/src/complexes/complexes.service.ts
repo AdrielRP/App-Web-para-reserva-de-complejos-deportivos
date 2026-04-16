@@ -6,6 +6,13 @@ import { CreateComplexDto } from './dto/create-complex.dto';
 export class ComplexesService {
   constructor(private prisma: PrismaService) {}
 
+  list() {
+    return this.prisma.complex.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   create(ownerId: string, dto: CreateComplexDto) {
     return this.prisma.complex.create({
       data: {

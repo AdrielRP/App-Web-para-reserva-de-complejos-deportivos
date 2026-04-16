@@ -12,6 +12,7 @@ import { ALLOWED_BOOKING_DURATIONS_MIN } from './bookings.constants';
 export class BookingsService {
   private COMMISSION_PCT = 10; // MVP
   private TZ = 'America/Lima';
+  private MAX_PAYMENT_REFERENCE_LENGTH = 120;
 
   private ALLOWED_DURATIONS = new Set<number>(ALLOWED_BOOKING_DURATIONS_MIN);
   private MAX_DURATION_MIN = 120;
@@ -46,6 +47,27 @@ export class BookingsService {
     if (isNaN(d.getTime()))
       throw new BadRequestException('Invalid startAt date');
     return d;
+  }
+
+  private validatePaymentReference(reference?: string): string | undefined {
+    if (reference === undefined) return undefined;
+
+    const normalizedReference = reference.trim();
+    if (
+      normalizedReference.length === 0 ||
+      normalizedReference.length > this.MAX_PAYMENT_REFERENCE_LENGTH
+    ) {
+      throw new BadRequestException(
+        `reference must be 1 to ${this.MAX_PAYMENT_REFERENCE_LENGTH} characters when provided`,
+      );
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(normalizedReference)) {
+      throw new BadRequestException(
+        'reference can only include letters, numbers, hyphen and underscore',
+      );
+    }
+
+    return normalizedReference;
   }
 
   async create(params: {
@@ -200,6 +222,62 @@ export class BookingsService {
     return this.prisma.booking.update({
       where: { id: bookingId },
       data: { status: 'CANCELLED' },
+    });
+  }
+
+  async pay(userId: string, bookingId: string, reference?: string) {
+    // MVP simulated payment: upsert payment and confirm booking in one transaction.
+    const validatedReference = this.validatePaymentReference(reference);
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        priceSubtotal: true,
+        commissionAmt: true,
+      },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.userId !== userId)
+      throw new ForbiddenException('Not your booking');
+    if (booking.status === 'CANCELLED') {
+      throw new BadRequestException('Cannot pay a cancelled booking');
+    }
+
+    const amount = booking.priceSubtotal + booking.commissionAmt;
+
+    await this.prisma.$transaction([
+      this.prisma.payment.upsert({
+        where: { bookingId },
+        create: {
+          bookingId,
+          provider: 'SIMULATED',
+          status: 'PAID',
+          amount,
+          reference: validatedReference,
+        },
+        update: {
+          provider: 'SIMULATED',
+          status: 'PAID',
+          amount,
+          reference: validatedReference,
+        },
+      }),
+      this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          totalPaid: amount,
+          status: 'CONFIRMED',
+        },
+      }),
+    ]);
+
+    return this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { payment: true },
     });
   }
 }

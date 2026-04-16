@@ -10,6 +10,11 @@ import { ComplexesService } from './complexes.service';
 export class ComplexesController {
   constructor(private complexes: ComplexesService) {}
 
+  @Get()
+  list() {
+    return this.complexes.list();
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OWNER)
   @Post()

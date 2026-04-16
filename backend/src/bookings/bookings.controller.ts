@@ -14,6 +14,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { BookingsService } from './bookings.service';
+import { PayBookingDto } from './dto/pay-booking.dto';
 
 @Controller('bookings')
 export class BookingsController {
@@ -45,5 +46,16 @@ export class BookingsController {
   @Patch(':id/cancel')
   cancel(@Req() req: { user: { sub: string } }, @Param('id') id: string) {
     return this.bookings.cancel(req.user.sub, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  @Post(':id/pay')
+  pay(
+    @Req() req: { user: { sub: string } },
+    @Param('id') id: string,
+    @Body() dto: PayBookingDto,
+  ) {
+    return this.bookings.pay(req.user.sub, id, dto.reference);
   }
 }
