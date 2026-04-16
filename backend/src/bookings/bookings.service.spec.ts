@@ -4,6 +4,7 @@ import { BookingsService } from './bookings.service';
 describe('BookingsService.pay', () => {
   const prismaMock = {
     booking: {
+      findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
@@ -95,5 +96,79 @@ describe('BookingsService.pay', () => {
     await expect(service.pay('user-1', 'booking-1')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+});
+
+describe('BookingsService.owner', () => {
+  const prismaMock = {
+    booking: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+  };
+
+  let service: BookingsService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new BookingsService(prismaMock as never);
+  });
+
+  it('lists only owner bookings with filters', async () => {
+    prismaMock.booking.findMany.mockResolvedValue([]);
+
+    await service.ownerBookings('owner-1', {
+      complexId: 'complex-1',
+      courtId: 'court-1',
+      district: 'miraflores',
+      status: 'PENDING',
+      dateFrom: '2026-04-01',
+      dateTo: '2026-04-30',
+    });
+
+    expect(prismaMock.booking.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects owner cancellation for someone else complex', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue({
+      id: 'booking-1',
+      status: 'PENDING',
+      endAt: new Date(Date.now() + 60 * 60 * 1000),
+      court: {
+        complex: {
+          ownerId: 'owner-2',
+        },
+      },
+    });
+
+    await expect(
+      service.ownerCancel('owner-1', 'booking-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('updates booking to cancelled for owner', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue({
+      id: 'booking-1',
+      status: 'CONFIRMED',
+      endAt: new Date(Date.now() + 60 * 60 * 1000),
+      court: {
+        complex: {
+          ownerId: 'owner-1',
+        },
+      },
+    });
+    prismaMock.booking.update.mockResolvedValue({
+      id: 'booking-1',
+      status: 'CANCELLED',
+    });
+
+    const result = await service.ownerCancel('owner-1', 'booking-1');
+
+    expect(prismaMock.booking.update).toHaveBeenCalledWith({
+      where: { id: 'booking-1' },
+      data: { status: 'CANCELLED' },
+    });
+    expect(result).toMatchObject({ id: 'booking-1', status: 'CANCELLED' });
   });
 });
