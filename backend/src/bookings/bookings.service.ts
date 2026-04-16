@@ -222,7 +222,7 @@ export class BookingsService {
 
   async pay(userId: string, bookingId: string, reference?: string) {
     // MVP simulated payment: upsert payment and confirm booking in one transaction.
-    reference = this.validatePaymentReference(reference);
+    const validatedReference = this.validatePaymentReference(reference);
 
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
@@ -252,13 +252,13 @@ export class BookingsService {
           provider: 'SIMULATED',
           status: 'PAID',
           amount,
-          reference,
+          reference: validatedReference,
         },
         update: {
           provider: 'SIMULATED',
           status: 'PAID',
           amount,
-          reference,
+          reference: validatedReference,
         },
       }),
       this.prisma.booking.update({

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
 
 type AvailabilitySlot = {
@@ -40,7 +40,6 @@ export default function AvailabilityPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const durations = useMemo(() => AVAILABLE_DURATIONS, []);
 
   async function loadAvailability() {
     setLoading(true);
@@ -115,7 +114,7 @@ export default function AvailabilityPage() {
             value={durationMin}
             onChange={(e) => setDurationMin(Number(e.target.value))}
           >
-            {durations.map((item) => (
+            {AVAILABLE_DURATIONS.map((item) => (
               <option key={item} value={item}>
                 {item}
               </option>
