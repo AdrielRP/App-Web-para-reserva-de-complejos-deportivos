@@ -31,6 +31,20 @@
 $ npm install
 ```
 
+## Development seed
+
+```bash
+$ npx prisma migrate dev
+$ npm run db:seed
+```
+
+Dev credentials:
+
+- OWNER: `owner.dev@pichangaya.local` / `Owner123!`
+- USER: `user.dev@pichangaya.local` / `User123!`
+
+The seed is idempotent: it creates/updates an OWNER and USER, one demo complex for the OWNER, one court, and weekly rules for all days of the week (7 days, Sunday=0 through Saturday=6) from `12:00` to `22:00` with `slotMin=60`.
+
 ## Compile and run the project
 
 ```bash
@@ -56,6 +70,19 @@ $ npm run test:e2e
 # test coverage
 $ npm run test:cov
 ```
+
+## Quick manual verification (availability + durations)
+
+1. Login as OWNER and configure weekly schedule (only if you test a court different from the seeded one):
+   - `POST /courts/:courtId/schedule/weekly-default` with `{ "start":"12:00", "end":"22:00", "slotMin":60 }`
+2. Query availability:
+   - `GET /courts/:courtId/availability?date=YYYY-MM-DD`
+   - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=60`
+   - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=90`
+   - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=120`
+3. Create a 90-minute booking:
+   - `POST /bookings` with `{ "courtId":"...", "date":"YYYY-MM-DD", "startLocal":"14:00", "durationMin":90 }`
+4. Query availability again and confirm that `durationOptionsMin` and `available` are reduced accordingly.
 
 ## Deployment
 

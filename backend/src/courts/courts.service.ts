@@ -7,14 +7,57 @@ import {
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourtDto } from './dto/create-court.dto';
+import { ALLOWED_BOOKING_DURATIONS_MIN } from '../bookings/bookings.constants';
+
+type AvailabilityReason = 'BOOKED' | 'OUTSIDE_SCHEDULE';
+
+type AvailabilitySlot = {
+  startLocal: string;
+  endLocal: string;
+  startMin: number;
+  endMin: number;
+  slotMin: number;
+  startAt: string;
+  endAt: string;
+  available: boolean;
+  durationOptionsMin: number[];
+  reason?: AvailabilityReason;
+  bookingId: string | null;
+};
+
+type AvailabilityResponse = {
+  date: string;
+  timezone: string;
+  courtId: string;
+  slotMin: number | null;
+  durationsAllowedMin: number[];
+  requestedDurationMin: number | null;
+  slots: AvailabilitySlot[];
+};
 
 @Injectable()
 export class CourtsService {
   constructor(private prisma: PrismaService) {}
 
-  async availability(courtId: string, date: string, tz = 'America/Lima') {
+  async availability(
+    courtId: string,
+    date: string,
+    tz = 'America/Lima',
+    durationMin?: number,
+  ): Promise<AvailabilityResponse> {
+    const durationsAllowedMin = [...ALLOWED_BOOKING_DURATIONS_MIN];
+    const durationsAllowedSet = new Set<number>(durationsAllowedMin);
+
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new BadRequestException('date must be YYYY-MM-DD');
+    }
+    if (
+      durationMin !== undefined &&
+      (!Number.isInteger(durationMin) || !durationsAllowedSet.has(durationMin))
+    ) {
+      throw new BadRequestException(
+        `durationMin must be one of: ${durationsAllowedMin.join(', ')}`,
+      );
     }
 
     const court = await this.prisma.court.findUnique({
@@ -35,7 +78,15 @@ export class CourtsService {
     });
 
     if (rules.length === 0) {
-      return { date, timezone: tz, courtId, slots: [] as any[] };
+      return {
+        date,
+        timezone: tz,
+        courtId,
+        slotMin: null,
+        durationsAllowedMin,
+        requestedDurationMin: durationMin ?? null,
+        slots: [],
+      };
     }
 
     const dayStartUtc = fromZonedTime(`${date} 00:00:00`, tz);
@@ -57,41 +108,120 @@ export class CourtsService {
       return `${hh}:${mm}`;
     };
 
-    const slots: Array<{
-      startLocal: string;
-      endLocal: string;
-      startAt: string;
-      endAt: string;
-      available: boolean;
-      bookingId: string | null;
-    }> = [];
+    const slots: AvailabilitySlot[] = [];
 
     for (const r of rules) {
       const slotMin = r.slotMin ?? 60;
 
       for (let m = r.startMin; m + slotMin <= r.endMin; m += slotMin) {
         const startLocal = toHHmm(m);
-        const endLocal = toHHmm(m + slotMin);
+        const endMin = m + slotMin;
+        const endLocal = toHHmm(endMin);
 
         const startAt = fromZonedTime(`${date} ${startLocal}:00`, tz);
         const endAt = fromZonedTime(`${date} ${endLocal}:00`, tz);
 
-        const overlap = bookings.find(
-          (b) => b.startAt < endAt && b.endAt > startAt,
+        const checksByDuration = durationsAllowedMin.map(
+          (candidateDuration) => {
+            const candidateEndMin = m + candidateDuration;
+            if (candidateEndMin > r.endMin) {
+              return {
+                durationMin: candidateDuration,
+                available: false as const,
+                reason: 'OUTSIDE_SCHEDULE' as const,
+                bookingId: null,
+              };
+            }
+
+            const candidateEndAt = fromZonedTime(
+              `${date} ${toHHmm(candidateEndMin)}:00`,
+              tz,
+            );
+            const overlap = bookings.find(
+              (b) => b.startAt < candidateEndAt && b.endAt > startAt,
+            );
+
+            if (overlap) {
+              return {
+                durationMin: candidateDuration,
+                available: false as const,
+                reason: 'BOOKED' as const,
+                bookingId: overlap.id,
+              };
+            }
+
+            return {
+              durationMin: candidateDuration,
+              available: true as const,
+              reason: undefined,
+              bookingId: null,
+            };
+          },
         );
+
+        const durationOptionsMin = checksByDuration
+          .filter((c) => c.available)
+          .map((c) => c.durationMin);
+
+        let available = durationOptionsMin.length > 0;
+        let reason: AvailabilityReason | undefined;
+        let bookingId: string | null = null;
+
+        if (durationMin !== undefined) {
+          const selected = checksByDuration.find(
+            (c) => c.durationMin === durationMin,
+          );
+          if (!selected) {
+            available = false;
+            reason = 'OUTSIDE_SCHEDULE';
+            bookingId = null;
+          } else {
+            available = selected.available;
+            reason = selected.available ? undefined : selected.reason;
+            bookingId = selected.bookingId;
+          }
+        } else if (!available) {
+          const booked = checksByDuration.find((c) => c.reason === 'BOOKED');
+          if (booked) {
+            reason = 'BOOKED';
+            bookingId = booked.bookingId;
+          } else {
+            reason = 'OUTSIDE_SCHEDULE';
+          }
+        }
 
         slots.push({
           startLocal,
           endLocal,
+          startMin: m,
+          endMin,
+          slotMin,
           startAt: startAt.toISOString(),
           endAt: endAt.toISOString(),
-          available: !overlap,
-          bookingId: overlap?.id ?? null,
+          available,
+          durationOptionsMin,
+          reason,
+          bookingId,
         });
       }
     }
 
-    return { date, timezone: tz, courtId, slots };
+    const distinctSlotMins = new Set(rules.map((r) => r.slotMin ?? 60));
+    const firstSlotMin = distinctSlotMins.values().next().value;
+    const effectiveSlotMin =
+      distinctSlotMins.size === 1 && firstSlotMin !== undefined
+        ? firstSlotMin
+        : null;
+
+    return {
+      date,
+      timezone: tz,
+      courtId,
+      slotMin: effectiveSlotMin,
+      durationsAllowedMin,
+      requestedDurationMin: durationMin ?? null,
+      slots,
+    };
   }
 
   async create(ownerId: string, dto: CreateCourtDto) {
