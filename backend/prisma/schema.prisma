@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  OWNER
+  STAFF
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum Permission {
+  MANAGE_COURTS
+  MANAGE_SCHEDULE
+  VIEW_BOOKINGS
+  MANAGE_BOOKINGS
+  VIEW_PAYMENTS
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  fullName  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // If role=OWNER
+  complexesOwned   Complex[]         @relation("OwnerComplexes")
+
+  // If role=STAFF
+  staffMemberships StaffMembership[]
+
+  // If role=USER (customer)
+  bookings         Booking[]
+}
+
+model Complex {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  district  String
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner  User   @relation("OwnerComplexes", fields: [ownerId], references: [id])
+  courts Court[]
+  staff  StaffMembership[]
+
+  @@index([ownerId])
+  @@index([district])
+}
+
+model StaffMembership {
+  id        String   @id @default(cuid())
+  complexId String
+  userId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  complex     Complex          @relation(fields: [complexId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
+  permissions StaffPermission[]
+
+  @@unique([complexId, userId])
+  @@index([userId])
+}
+
+model StaffPermission {
+  id                String     @id @default(cuid())
+  staffMembershipId String
+  permission        Permission
+
+  staffMembership StaffMembership @relation(fields: [staffMembershipId], references: [id])
+
+  @@unique([staffMembershipId, permission])
+  @@index([staffMembershipId])
+}
+
+model Court {
+  id           String   @id @default(cuid())
+  complexId    String
+  name         String
+  sport        String   @default("FUTBOL")
+  pricePerHour Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  complex   Complex            @relation(fields: [complexId], references: [id])
+  schedules CourtScheduleRule[]
+  bookings  Booking[]
+
+  @@index([complexId])
+}
+
+model CourtScheduleRule {
+  id        String  @id @default(cuid())
+  courtId   String
+  dayOfWeek Int     // 0=Sun ... 6=Sat
+  startMin  Int     // minutes from 00:00
+  endMin    Int     // minutes from 00:00
+  slotMin   Int     @default(60) // 30/60/etc
+  isActive  Boolean @default(true)
+
+  court Court @relation(fields: [courtId], references: [id])
+
+  @@index([courtId, dayOfWeek])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  courtId       String
+  userId        String
+  status        BookingStatus @default(PENDING)
+
+  startAt DateTime
+  endAt   DateTime
+
+  priceSubtotal Int
+  commissionPct Int
+  commissionAmt Int
+  totalPaid     Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  court   Court   @relation(fields: [courtId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  payment Payment?
+
+  @@index([courtId, startAt, endAt])
+  @@index([userId, createdAt])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  bookingId String        @unique
+  status    PaymentStatus @default(PENDING)
+
+  provider  String? // e.g. "SIMULATED"
+  reference String? // transaction id (optional)
+
+  amount    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+}
