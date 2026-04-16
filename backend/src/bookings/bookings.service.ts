@@ -12,6 +12,7 @@ import { ALLOWED_BOOKING_DURATIONS_MIN } from './bookings.constants';
 export class BookingsService {
   private COMMISSION_PCT = 10; // MVP
   private TZ = 'America/Lima';
+  private MAX_PAYMENT_REFERENCE_LENGTH = 120;
 
   private ALLOWED_DURATIONS = new Set<number>(ALLOWED_BOOKING_DURATIONS_MIN);
   private MAX_DURATION_MIN = 120;
@@ -209,9 +210,12 @@ export class BookingsService {
         throw new BadRequestException('reference must be a string');
       }
       const normalizedReference = reference.trim();
-      if (normalizedReference.length === 0 || normalizedReference.length > 120) {
+      if (
+        normalizedReference.length === 0 ||
+        normalizedReference.length > this.MAX_PAYMENT_REFERENCE_LENGTH
+      ) {
         throw new BadRequestException(
-          'reference must be 1 to 120 characters when provided',
+          `reference must be 1 to ${this.MAX_PAYMENT_REFERENCE_LENGTH} characters when provided`,
         );
       }
       reference = normalizedReference;

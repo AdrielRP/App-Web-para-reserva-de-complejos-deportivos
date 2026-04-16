@@ -23,6 +23,8 @@ type BookingResponse = {
   status: string;
 };
 
+const AVAILABLE_DURATIONS = [60, 90, 120];
+
 function todayLocalDate() {
   const now = new Date();
   const timezoneOffsetMs = now.getTimezoneOffset() * 60_000;
@@ -38,7 +40,7 @@ export default function AvailabilityPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const durations = useMemo(() => [60, 90, 120], []);
+  const durations = useMemo(() => AVAILABLE_DURATIONS, []);
 
   async function loadAvailability() {
     setLoading(true);

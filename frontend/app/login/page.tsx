@@ -12,8 +12,8 @@ type LoginResponse = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("user.dev@pichangaya.local");
-  const [password, setPassword] = useState("User123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
