@@ -223,4 +223,25 @@ describe('BookingsService.mine', () => {
       BadRequestException,
     );
   });
+
+  it('includes isPast in mine response', async () => {
+    prismaMock.booking.findMany.mockResolvedValueOnce([
+      {
+        id: 'booking-1',
+        userId: 'user-1',
+        status: 'PENDING',
+        startAt: new Date(),
+        endAt: new Date(Date.now() - 5 * 60 * 1000),
+      },
+    ]);
+
+    const result = await service.mine('user-1');
+
+    expect(result).toMatchObject([
+      {
+        id: 'booking-1',
+        isPast: true,
+      },
+    ]);
+  });
 });
