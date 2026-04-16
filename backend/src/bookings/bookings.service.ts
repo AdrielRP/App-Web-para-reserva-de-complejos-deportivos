@@ -282,7 +282,7 @@ export class BookingsService {
             id: filters.complexId,
             district: district
               ? {
-                  contains: district,
+                  equals: district,
                   mode: 'insensitive',
                 }
               : undefined,
@@ -359,10 +359,6 @@ export class BookingsService {
     if (booking.status === 'CANCELLED') return booking;
     if (booking.endAt <= new Date()) {
       throw new BadRequestException('Cannot cancel a past booking');
-    }
-
-    if (!['PENDING', 'CONFIRMED'].includes(booking.status)) {
-      throw new BadRequestException('Booking cannot be cancelled');
     }
 
     return this.prisma.booking.update({
