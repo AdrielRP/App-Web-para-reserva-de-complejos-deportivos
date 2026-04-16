@@ -18,6 +18,10 @@ type Booking = {
   };
 };
 
+function generatePaymentReference() {
+  return `sim-${Date.now()}`;
+}
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +71,7 @@ export default function BookingsPage() {
     try {
       await apiFetch(`/bookings/${bookingId}/pay`, {
         method: "POST",
-        body: JSON.stringify({ reference: `sim-${Date.now()}` }),
+        body: JSON.stringify({ reference: generatePaymentReference() }),
       });
       setMessage("Pago simulado aplicado y reserva confirmada");
       await loadBookings();

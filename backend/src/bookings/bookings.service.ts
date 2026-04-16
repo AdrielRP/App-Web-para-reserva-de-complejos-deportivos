@@ -49,6 +49,22 @@ export class BookingsService {
     return d;
   }
 
+  private validatePaymentReference(reference?: string): string | undefined {
+    if (reference === undefined) return undefined;
+
+    const normalizedReference = reference.trim();
+    if (
+      normalizedReference.length === 0 ||
+      normalizedReference.length > this.MAX_PAYMENT_REFERENCE_LENGTH
+    ) {
+      throw new BadRequestException(
+        `reference must be 1 to ${this.MAX_PAYMENT_REFERENCE_LENGTH} characters when provided`,
+      );
+    }
+
+    return normalizedReference;
+  }
+
   async create(params: {
     userId: string;
     courtId: string;
@@ -206,18 +222,7 @@ export class BookingsService {
 
   async pay(userId: string, bookingId: string, reference?: string) {
     // MVP simulated payment: upsert payment and confirm booking in one transaction.
-    if (reference !== undefined) {
-      const normalizedReference = reference.trim();
-      if (
-        normalizedReference.length === 0 ||
-        normalizedReference.length > this.MAX_PAYMENT_REFERENCE_LENGTH
-      ) {
-        throw new BadRequestException(
-          `reference must be 1 to ${this.MAX_PAYMENT_REFERENCE_LENGTH} characters when provided`,
-        );
-      }
-      reference = normalizedReference;
-    }
+    reference = this.validatePaymentReference(reference);
 
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
