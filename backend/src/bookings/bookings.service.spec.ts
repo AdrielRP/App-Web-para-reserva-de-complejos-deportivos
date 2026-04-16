@@ -219,6 +219,8 @@ describe('BookingsService.mine', () => {
   });
 
   it('rejects invalid scope values', async () => {
-    expect(() => service.mine('user-1', 'invalid')).toThrow(BadRequestException);
+    await expect(service.mine('user-1', 'invalid')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });

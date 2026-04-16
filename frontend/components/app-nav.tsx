@@ -51,7 +51,7 @@ export default function AppNav() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <nav aria-label="Navegación principal" className="flex flex-wrap items-center gap-3">
       <Link className="rounded border px-3 py-2 text-sm" href="/complexes">
         Ver complejos
       </Link>
@@ -75,6 +75,6 @@ export default function AppNav() {
           Cerrar sesión
         </button>
       )}
-    </div>
+    </nav>
   );
 }

@@ -214,7 +214,7 @@ export class BookingsService {
     });
   }
 
-  mine(userId: string, scope?: string) {
+  async mine(userId: string, scope?: string) {
     const parsedScope = this.parseMineScope(scope);
     const now = new Date();
 
