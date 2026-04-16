@@ -11,7 +11,7 @@ import { ALLOWED_BOOKING_DURATIONS_MIN } from './bookings.constants';
 
 @Injectable()
 export class BookingsService {
-  private COMMISSION_PCT = 10; // MVP
+  private COMMISSION_PCT = 10;
   private TZ = 'America/Lima';
   private MAX_PAYMENT_REFERENCE_LENGTH = 120;
 
@@ -51,7 +51,6 @@ export class BookingsService {
     date?: string;
     startLocal?: string;
   }): Date {
-    // Preferimos hora local si viene completa
     if (input.date && input.startLocal) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
         throw new BadRequestException('date must be YYYY-MM-DD');
@@ -59,11 +58,9 @@ export class BookingsService {
       if (!/^(\d{2}):(\d{2})$/.test(input.startLocal)) {
         throw new BadRequestException('startLocal must be HH:mm');
       }
-      // Construye Date UTC a partir de fecha+hora en zona Lima
       return fromZonedTime(`${input.date} ${input.startLocal}:00`, this.TZ);
     }
 
-    // Si no, usamos startAt ISO (compatibilidad)
     if (!input.startAtIso) {
       throw new BadRequestException(
         'Provide either startAt or (date + startLocal)',
@@ -134,11 +131,9 @@ export class BookingsService {
     if (!court) throw new NotFoundException('Court not found');
     if (!court.isActive) throw new BadRequestException('Court is not active');
 
-    // Día local (Lima) según startAt
     const localDate = formatInTimeZone(startAt, this.TZ, 'yyyy-MM-dd');
 
-    // 0=Sun..6=Sat
-    const iso = Number(formatInTimeZone(startAt, this.TZ, 'i')); // 1..7
+    const iso = Number(formatInTimeZone(startAt, this.TZ, 'i'));
     const dayIndex = iso % 7;
 
     const rules = await this.prisma.courtScheduleRule.findMany({
@@ -151,7 +146,6 @@ export class BookingsService {
       throw new BadRequestException('Court has no schedule rules for this day');
     }
 
-    // startAt -> minutos desde 00:00 en Lima
     const hh = Number(formatInTimeZone(startAt, this.TZ, 'H'));
     const mm = Number(formatInTimeZone(startAt, this.TZ, 'm'));
     const startMinLocal = hh * 60 + mm;
@@ -341,9 +335,16 @@ export class BookingsService {
   }
 
   async cancel(userId: string, bookingId: string) {
+    const now = new Date();
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
-      select: { id: true, userId: true, status: true },
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        startAt: true,
+        endAt: true,
+      },
     });
 
     if (!booking) throw new NotFoundException('Booking not found');
@@ -351,6 +352,15 @@ export class BookingsService {
       throw new ForbiddenException('Not your booking');
 
     if (booking.status === 'CANCELLED') return booking;
+    if (booking.status === 'CONFIRMED') {
+      throw new BadRequestException('Cannot cancel a confirmed booking');
+    }
+    if (booking.status !== 'PENDING') {
+      throw new BadRequestException('Cannot cancel booking in current status');
+    }
+    if (booking.startAt <= now || booking.endAt <= now) {
+      throw new BadRequestException('Cannot cancel a past booking');
+    }
 
     return this.prisma.booking.update({
       where: { id: bookingId },
@@ -392,7 +402,6 @@ export class BookingsService {
   }
 
   async pay(userId: string, bookingId: string, reference?: string) {
-    // MVP simulated payment: upsert payment and confirm booking in one transaction.
     const validatedReference = this.validatePaymentReference(reference);
 
     const booking = await this.prisma.booking.findUnique({

@@ -258,3 +258,85 @@ describe('BookingsService.mine', () => {
     ]);
   });
 });
+
+describe('BookingsService.cancel', () => {
+  const prismaMock = {
+    booking: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+  };
+
+  let service: BookingsService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new BookingsService(prismaMock as never);
+  });
+
+  it('cancels a pending future booking', async () => {
+    const now = Date.now();
+    prismaMock.booking.findUnique.mockResolvedValue({
+      id: 'booking-1',
+      userId: 'user-1',
+      status: 'PENDING',
+      startAt: new Date(now + 60_000),
+      endAt: new Date(now + 3_600_000),
+    });
+    prismaMock.booking.update.mockResolvedValue({
+      id: 'booking-1',
+      status: 'CANCELLED',
+    });
+
+    const result = await service.cancel('user-1', 'booking-1');
+
+    expect(prismaMock.booking.update).toHaveBeenCalledWith({
+      where: { id: 'booking-1' },
+      data: { status: 'CANCELLED' },
+    });
+    expect(result).toMatchObject({ id: 'booking-1', status: 'CANCELLED' });
+  });
+
+  it('returns booking when already cancelled', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue({
+      id: 'booking-1',
+      userId: 'user-1',
+      status: 'CANCELLED',
+      startAt: new Date(),
+      endAt: new Date(),
+    });
+
+    const result = await service.cancel('user-1', 'booking-1');
+
+    expect(prismaMock.booking.update).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ id: 'booking-1', status: 'CANCELLED' });
+  });
+
+  it('rejects cancelling confirmed bookings', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue({
+      id: 'booking-1',
+      userId: 'user-1',
+      status: 'CONFIRMED',
+      startAt: new Date(Date.now() + 60_000),
+      endAt: new Date(Date.now() + 3_600_000),
+    });
+
+    await expect(service.cancel('user-1', 'booking-1')).rejects.toThrow(
+      'Cannot cancel a confirmed booking',
+    );
+  });
+
+  it('rejects cancelling past bookings', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue({
+      id: 'booking-1',
+      userId: 'user-1',
+      status: 'PENDING',
+      startAt: new Date(Date.now() - 3_600_000),
+      endAt: new Date(Date.now() - 60_000),
+    });
+
+    await expect(service.cancel('user-1', 'booking-1')).rejects.toThrow(
+      'Cannot cancel a past booking',
+    );
+  });
+});

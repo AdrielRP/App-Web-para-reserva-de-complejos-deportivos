@@ -35,6 +35,10 @@ function getScope(tab: BookingTab) {
   return tab === "ACTIVE" ? "active" : "history";
 }
 
+function hasBookingStarted(booking: Booking) {
+  return new Date(booking.startAt).getTime() <= Date.now();
+}
+
 export default function BookingsPage() {
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -182,26 +186,26 @@ export default function BookingsPage() {
                 </p>
                 <p className="text-sm">Estado: {booking.status}</p>
                 <p className="text-sm">Total pagado: S/ {booking.totalPaid}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    className="rounded border px-3 py-1 text-sm disabled:opacity-50"
-                    disabled={booking.status === "CANCELLED" || booking.isPast === true}
-                    onClick={() => void cancelBooking(booking.id)}
-                    type="button"
-                  >
-                    Cancelar
-                  </button>
-                  {activeTab === "ACTIVE" && (
+                {activeTab === "ACTIVE" && booking.status === "PENDING" && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {!hasBookingStarted(booking) && (
+                      <button
+                        className="rounded border px-3 py-1 text-sm"
+                        onClick={() => void cancelBooking(booking.id)}
+                        type="button"
+                      >
+                        Cancelar
+                      </button>
+                    )}
                     <button
                       className="rounded border px-3 py-1 text-sm disabled:opacity-50"
-                      disabled={booking.status !== "PENDING"}
                       onClick={() => void payBooking(booking.id)}
                       type="button"
                     >
                       Pagar (simulado)
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
