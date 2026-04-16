@@ -21,10 +21,10 @@ export class RolesGuard implements CanActivate {
     // Si no pide roles, no bloqueamos
     if (!requiredRoles || requiredRoles.length === 0) return true;
 
-    const req = context.switchToHttp().getRequest();
-    const user = req.user as
-      | { sub?: string; email?: string; role?: Role }
-      | undefined;
+    const req = context.switchToHttp().getRequest<{
+      user?: { sub?: string; email?: string; role?: Role };
+    }>();
+    const user = req.user;
 
     if (!user?.role) throw new ForbiddenException('Missing user role');
 
