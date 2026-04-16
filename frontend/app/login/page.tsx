@@ -2,12 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, ApiError, getApiUrl } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { authStorage } from "@/lib/authStorage";
 
 type LoginResponse = {
-  access_token?: string;
-  token?: string;
+  access_token: string;
 };
 
 export default function LoginPage() {
@@ -28,7 +27,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const token = response.access_token ?? response.token;
+      const token = response.access_token;
       if (!token) {
         throw new Error("Respuesta de login inválida");
       }
@@ -49,7 +48,6 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 py-8">
       <h1 className="text-2xl font-semibold">Login</h1>
-      <p className="text-sm text-zinc-600">API: {getApiUrl()}</p>
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
         <label className="flex flex-col gap-1">
           Email

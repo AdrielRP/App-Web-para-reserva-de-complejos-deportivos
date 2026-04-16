@@ -206,9 +206,6 @@ export class BookingsService {
 
   async pay(userId: string, bookingId: string, reference?: string) {
     if (reference !== undefined) {
-      if (typeof reference !== 'string') {
-        throw new BadRequestException('reference must be a string');
-      }
       const normalizedReference = reference.trim();
       if (
         normalizedReference.length === 0 ||

@@ -70,7 +70,3 @@ export async function apiFetch<T>(
 
   return payload as T;
 }
-
-export function getApiUrl() {
-  return API_URL;
-}
