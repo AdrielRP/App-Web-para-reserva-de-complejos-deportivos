@@ -50,6 +50,7 @@ export default function AvailabilityPage() {
   const loadAvailability = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setMessage(null);
     try {
       const response = await apiFetch<AvailabilityResponse>(
         `/courts/${courtId}/availability?date=${date}&durationMin=${durationMin}`,

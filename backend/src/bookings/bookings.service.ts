@@ -358,7 +358,7 @@ export class BookingsService {
     if (booking.status !== 'PENDING') {
       throw new BadRequestException('Cannot cancel booking in current status');
     }
-    if (booking.startAt <= now || booking.endAt <= now) {
+    if (booking.startAt <= now) {
       throw new BadRequestException('Cannot cancel a past booking');
     }
 
