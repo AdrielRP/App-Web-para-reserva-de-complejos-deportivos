@@ -25,8 +25,8 @@ type BookingResponse = {
 
 function todayLocalDate() {
   const now = new Date();
-  const tzOffsetMs = now.getTimezoneOffset() * 60_000;
-  return new Date(now.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+  const timezoneOffsetMs = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
 }
 
 export default function AvailabilityPage() {

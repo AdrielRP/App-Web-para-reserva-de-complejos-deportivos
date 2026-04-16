@@ -204,6 +204,19 @@ export class BookingsService {
   }
 
   async pay(userId: string, bookingId: string, reference?: string) {
+    if (reference !== undefined) {
+      if (typeof reference !== 'string') {
+        throw new BadRequestException('reference must be a string');
+      }
+      const normalizedReference = reference.trim();
+      if (normalizedReference.length === 0 || normalizedReference.length > 120) {
+        throw new BadRequestException(
+          'reference must be 1 to 120 characters when provided',
+        );
+      }
+      reference = normalizedReference;
+    }
+
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       select: {
