@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
 import AppNav from "@/components/app-nav";
 
@@ -23,6 +23,10 @@ type BookingResponse = {
   status: string;
 };
 
+type AuthMe = {
+  role: "USER" | "OWNER" | "STAFF";
+};
+
 const AVAILABLE_DURATIONS = [60, 90, 120];
 
 function todayLocalDate() {
@@ -40,8 +44,10 @@ export default function AvailabilityPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [canBook, setCanBook] = useState(false);
+  const [roleLoaded, setRoleLoaded] = useState(false);
 
-  async function loadAvailability() {
+  const loadAvailability = useCallback(async () => {
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -60,18 +66,36 @@ export default function AvailabilityPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [courtId, date, durationMin]);
 
   useEffect(() => {
-    if (courtId) {
-      void loadAvailability();
+    async function loadRole() {
+      try {
+        const me = await apiFetch<AuthMe>("/auth/me");
+        setCanBook(me.role === "USER");
+      } catch {
+        setCanBook(false);
+      } finally {
+        setRoleLoaded(true);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courtId]);
+
+    void loadRole();
+  }, []);
+
+  useEffect(() => {
+    if (!courtId) return;
+    void loadAvailability();
+  }, [courtId, loadAvailability]);
 
   async function createBooking(startLocal: string) {
     setError(null);
     setMessage(null);
+    if (!canBook) {
+      setMessage("Solo usuarios pueden reservar");
+      return;
+    }
+
     try {
       const booking = await apiFetch<BookingResponse>("/bookings", {
         method: "POST",
@@ -131,9 +155,12 @@ export default function AvailabilityPage() {
       {loading && <p>Cargando...</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {message && <p className="text-sm text-green-700">{message}</p>}
+      {roleLoaded && !canBook && (
+        <p className="text-sm text-zinc-700">Solo usuarios pueden reservar</p>
+      )}
 
       <ul className="grid gap-3">
-        {data?.slots.map((slot) => (
+        {(data?.slots ?? []).map((slot) => (
           <li className="rounded border p-3" key={`${slot.startLocal}-${slot.endLocal}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -149,7 +176,7 @@ export default function AvailabilityPage() {
               </div>
               <button
                 className="rounded border px-3 py-1 text-sm disabled:opacity-50"
-                disabled={!slot.available}
+                disabled={!slot.available || !canBook}
                 onClick={() => void createBooking(slot.startLocal)}
                 type="button"
               >
