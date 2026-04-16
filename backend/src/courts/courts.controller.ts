@@ -44,7 +44,18 @@ export class CourtsController {
   }
 
   @Get('courts/:courtId/availability')
-  availability(@Param('courtId') courtId: string, @Query('date') date: string) {
-    return this.courts.availability(courtId, date, 'America/Lima');
+  availability(
+    @Param('courtId') courtId: string,
+    @Query('date') date: string,
+    @Query('durationMin') durationMin?: string,
+  ) {
+    const requestedDurationMin =
+      durationMin === undefined ? undefined : Number(durationMin);
+    return this.courts.availability(
+      courtId,
+      date,
+      'America/Lima',
+      requestedDurationMin,
+    );
   }
 }

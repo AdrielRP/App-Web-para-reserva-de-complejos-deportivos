@@ -31,6 +31,20 @@
 $ npm install
 ```
 
+## Seed de desarrollo
+
+```bash
+$ npx prisma migrate dev
+$ npm run db:seed
+```
+
+Credenciales dev:
+
+- OWNER: `owner.dev@pichangaya.local` / `Owner123!`
+- USER: `user.dev@pichangaya.local` / `User123!`
+
+El seed es idempotente: crea/actualiza OWNER y USER, un complejo demo del OWNER, una cancha y reglas semanales (7 días) de `12:00` a `22:00` con `slotMin=60`.
+
 ## Compile and run the project
 
 ```bash
@@ -56,6 +70,19 @@ $ npm run test:e2e
 # test coverage
 $ npm run test:cov
 ```
+
+## Verificación manual rápida (availability + durations)
+
+1. Login como OWNER y configurar horario semanal (si aplica):
+   - `POST /courts/:courtId/schedule/weekly-default` con `{ "start":"12:00", "end":"22:00", "slotMin":60 }`
+2. Consultar disponibilidad:
+   - `GET /courts/:courtId/availability?date=YYYY-MM-DD`
+   - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=60`
+   - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=90`
+   - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=120`
+3. Crear reserva de 90 min:
+   - `POST /bookings` con `{ "courtId":"...", "date":"YYYY-MM-DD", "startLocal":"14:00", "durationMin":90 }`
+4. Volver a consultar availability y confirmar que `durationOptionsMin` y `available` se reducen correctamente.
 
 ## Deployment
 

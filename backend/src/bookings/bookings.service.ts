@@ -6,13 +6,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { ALLOWED_BOOKING_DURATIONS_MIN } from './bookings.constants';
 
 @Injectable()
 export class BookingsService {
   private COMMISSION_PCT = 10; // MVP
   private TZ = 'America/Lima';
 
-  private ALLOWED_DURATIONS = new Set([60, 90, 120]);
+  private ALLOWED_DURATIONS = new Set<number>(ALLOWED_BOOKING_DURATIONS_MIN);
   private MAX_DURATION_MIN = 120;
 
   constructor(private prisma: PrismaService) {}
