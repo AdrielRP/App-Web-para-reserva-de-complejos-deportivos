@@ -20,6 +20,13 @@ export class BookingsService {
 
   constructor(private prisma: PrismaService) {}
 
+  private parseMineScope(scope?: string): 'active' | 'history' | undefined {
+    if (scope === undefined) return undefined;
+    if (scope === 'active' || scope === 'history') return scope;
+
+    throw new BadRequestException('scope must be active or history');
+  }
+
   private parseDateFilterBoundary(
     value: string,
     boundary: 'start' | 'end',
@@ -207,9 +214,26 @@ export class BookingsService {
     });
   }
 
-  mine(userId: string) {
+  mine(userId: string, scope?: string) {
+    const parsedScope = this.parseMineScope(scope);
+    const now = new Date();
+
+    const where =
+      parsedScope === 'active'
+        ? {
+            userId,
+            status: { in: ['PENDING', 'CONFIRMED'] as BookingStatus[] },
+            endAt: { gt: now },
+          }
+        : parsedScope === 'history'
+          ? {
+              userId,
+              OR: [{ status: 'CANCELLED' as BookingStatus }, { endAt: { lte: now } }],
+            }
+          : { userId };
+
     return this.prisma.booking.findMany({
-      where: { userId },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         court: {

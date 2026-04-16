@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api";
+import AppNav from "@/components/app-nav";
 
 type Complex = {
   id: string;
@@ -53,11 +54,14 @@ const DEFAULT_FILTERS: Filters = {
 };
 
 export default function OwnerBookingsPage() {
+  const router = useRouter();
   const [complexes, setComplexes] = useState<Complex[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(true);
+  const [checkingRole, setCheckingRole] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -88,22 +92,37 @@ export default function OwnerBookingsPage() {
   }
 
   useEffect(() => {
-    async function loadComplexes() {
+    async function initPage() {
+      setCheckingRole(true);
+      setError(null);
       try {
+        const me = await apiFetch<{ role: "USER" | "OWNER" | "STAFF" }>("/auth/me");
+        if (me.role !== "OWNER") {
+          router.replace("/complexes");
+          return;
+        }
+        setAuthorized(true);
+
         const data = await apiFetch<Complex[]>("/complexes/mine");
         setComplexes(data);
+        await loadBookings(DEFAULT_FILTERS);
       } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          router.replace("/login");
+          return;
+        }
         if (err instanceof ApiError || err instanceof Error) {
           setError(err.message);
         } else {
-          setError("No se pudieron cargar tus complejos");
+          setError("No se pudo cargar la página");
         }
+      } finally {
+        setCheckingRole(false);
       }
     }
 
-    void loadComplexes();
-    void loadBookings(DEFAULT_FILTERS);
-  }, []);
+    void initPage();
+  }, [router]);
 
   useEffect(() => {
     async function loadCourts() {
@@ -157,10 +176,13 @@ export default function OwnerBookingsPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-8">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Reservas del owner</h1>
-        <Link className="rounded border px-3 py-2 text-sm" href="/bookings">
-          Mis reservas
-        </Link>
+        <AppNav />
       </div>
+
+      {checkingRole && <p>Cargando...</p>}
+
+      {authorized && (
+        <>
 
       <div className="grid gap-3 rounded border p-4 md:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm">
@@ -295,6 +317,8 @@ export default function OwnerBookingsPage() {
 
       {!loading && bookings.length === 0 && (
         <p className="text-sm text-zinc-600">No hay reservas para los filtros seleccionados.</p>
+      )}
+        </>
       )}
     </main>
   );

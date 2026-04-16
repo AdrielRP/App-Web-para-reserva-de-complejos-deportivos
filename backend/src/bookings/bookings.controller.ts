@@ -39,8 +39,11 @@ export class BookingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.USER)
   @Get('mine')
-  mine(@Req() req: { user: { sub: string } }) {
-    return this.bookings.mine(req.user.sub);
+  mine(
+    @Req() req: { user: { sub: string } },
+    @Query('scope') scope?: string,
+  ) {
+    return this.bookings.mine(req.user.sub, scope);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
