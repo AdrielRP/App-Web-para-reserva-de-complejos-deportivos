@@ -15,20 +15,20 @@ type AuthMe = {
 export default function AppNav() {
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
-  const [hasToken, setHasToken] = useState(() => Boolean(authStorage.getToken()));
+  const [hasToken, setHasToken] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function loadMe() {
       const token = authStorage.getToken();
+      if (!cancelled) setHasToken(Boolean(token));
+
       if (!token) {
         if (!cancelled) {
           setRole(null);
-          setHasToken(false);
         }
         return;
       }
-      if (!cancelled) setHasToken(true);
 
       try {
         const me = await apiFetch<AuthMe>("/auth/me");
@@ -53,6 +53,7 @@ export default function AppNav() {
   function logout() {
     authStorage.clearToken();
     setRole(null);
+    setHasToken(false);
     router.push("/login");
   }
 
@@ -71,16 +72,16 @@ export default function AppNav() {
           Reservas owner
         </Link>
       )}
-      {!hasToken && (
-        <Link className="rounded border px-3 py-2 text-sm" href="/login">
-          Login
-        </Link>
-      )}
-      {hasToken && (
-        <button className="rounded border px-3 py-2 text-sm" onClick={logout} type="button">
-          Cerrar sesión
-        </button>
-      )}
+      {hasToken !== null &&
+        (!hasToken ? (
+          <Link className="rounded border px-3 py-2 text-sm" href="/login">
+            Login
+          </Link>
+        ) : (
+          <button className="rounded border px-3 py-2 text-sm" onClick={logout} type="button">
+            Cerrar sesión
+          </button>
+        ))}
     </nav>
   );
 }
