@@ -19,7 +19,8 @@ type Booking = {
 };
 
 function generatePaymentReference() {
-  return `sim-${Date.now()}`;
+  const randomSuffix = Math.random().toString(36).slice(2, 8);
+  return `sim-${Date.now()}-${randomSuffix}`;
 }
 
 export default function BookingsPage() {

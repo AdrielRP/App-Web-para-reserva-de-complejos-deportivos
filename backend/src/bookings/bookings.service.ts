@@ -61,6 +61,11 @@ export class BookingsService {
         `reference must be 1 to ${this.MAX_PAYMENT_REFERENCE_LENGTH} characters when provided`,
       );
     }
+    if (!/^[a-zA-Z0-9_-]+$/.test(normalizedReference)) {
+      throw new BadRequestException(
+        'reference can only include letters, numbers, hyphen and underscore',
+      );
+    }
 
     return normalizedReference;
   }
