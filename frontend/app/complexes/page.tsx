@@ -43,6 +43,9 @@ export default function ComplexesPage() {
         <Link className="rounded border px-3 py-2 text-sm" href="/bookings">
           Mis reservas
         </Link>
+        <Link className="rounded border px-3 py-2 text-sm" href="/owner/bookings">
+          Reservas owner
+        </Link>
         <button
           className="rounded border px-3 py-2 text-sm"
           onClick={() => {

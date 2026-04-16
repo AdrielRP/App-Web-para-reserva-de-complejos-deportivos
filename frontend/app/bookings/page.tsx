@@ -23,8 +23,14 @@ function generatePaymentReference() {
   return `sim-${Date.now()}-${randomSuffix}`;
 }
 
+function isActiveBooking(booking: Booking) {
+  if (booking.status === "CANCELLED") return false;
+  return new Date(booking.endAt).getTime() > Date.now();
+}
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [activeTab, setActiveTab] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -85,6 +91,10 @@ export default function BookingsPage() {
     }
   }
 
+  const activeBookings = bookings.filter(isActiveBooking);
+  const historyBookings = bookings.filter((booking) => !isActiveBooking(booking));
+  const visibleBookings = activeTab === "ACTIVE" ? activeBookings : historyBookings;
+
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-8">
       <div className="flex flex-wrap items-center gap-3">
@@ -95,14 +105,34 @@ export default function BookingsPage() {
         <Link className="rounded border px-3 py-2 text-sm" href="/login">
           Login
         </Link>
+        <Link className="rounded border px-3 py-2 text-sm" href="/owner/bookings">
+          Reservas owner
+        </Link>
       </div>
 
       {loading && <p>Cargando...</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {message && <p className="text-sm text-green-700">{message}</p>}
 
+      <div className="flex gap-2">
+        <button
+          className={`rounded border px-3 py-1 text-sm ${activeTab === "ACTIVE" ? "bg-zinc-100" : ""}`}
+          onClick={() => setActiveTab("ACTIVE")}
+          type="button"
+        >
+          Activas ({activeBookings.length})
+        </button>
+        <button
+          className={`rounded border px-3 py-1 text-sm ${activeTab === "HISTORY" ? "bg-zinc-100" : ""}`}
+          onClick={() => setActiveTab("HISTORY")}
+          type="button"
+        >
+          Historial ({historyBookings.length})
+        </button>
+      </div>
+
       <ul className="grid gap-3">
-        {bookings.map((booking) => (
+        {visibleBookings.map((booking) => (
           <li className="rounded border p-4" key={booking.id}>
             <p className="font-medium">
               {booking.court?.name ?? "Cancha"} ·{" "}
@@ -117,7 +147,7 @@ export default function BookingsPage() {
             <div className="mt-2 flex flex-wrap gap-2">
               <button
                 className="rounded border px-3 py-1 text-sm disabled:opacity-50"
-                disabled={booking.status === "CANCELLED"}
+                disabled={!isActiveBooking(booking)}
                 onClick={() => void cancelBooking(booking.id)}
                 type="button"
               >
@@ -135,6 +165,9 @@ export default function BookingsPage() {
           </li>
         ))}
       </ul>
+      {!loading && visibleBookings.length === 0 && (
+        <p className="text-sm text-zinc-600">No hay reservas en esta sección.</p>
+      )}
     </main>
   );
 }

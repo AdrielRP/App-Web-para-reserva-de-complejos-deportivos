@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { ALLOWED_BOOKING_DURATIONS_MIN } from './bookings.constants';
@@ -18,6 +19,25 @@ export class BookingsService {
   private MAX_DURATION_MIN = 120;
 
   constructor(private prisma: PrismaService) {}
+
+  private parseDateFilterBoundary(
+    value: string,
+    boundary: 'start' | 'end',
+  ): Date {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const time = boundary === 'start' ? '00:00:00' : '23:59:59.999';
+      return fromZonedTime(`${value} ${time}`, this.TZ);
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException(
+        `${boundary === 'start' ? 'dateFrom' : 'dateTo'} must be a valid date`,
+      );
+    }
+
+    return parsed;
+  }
 
   private parseStartAt(input: {
     startAtIso?: string;
@@ -207,6 +227,95 @@ export class BookingsService {
     });
   }
 
+  ownerBookings(
+    ownerId: string,
+    filters: {
+      complexId?: string;
+      courtId?: string;
+      district?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      status?: BookingStatus;
+    },
+  ) {
+    if (
+      filters.status !== undefined &&
+      !['PENDING', 'CONFIRMED', 'CANCELLED'].includes(filters.status)
+    ) {
+      throw new BadRequestException(
+        'status must be PENDING, CONFIRMED or CANCELLED',
+      );
+    }
+
+    const startAtFilter: { gte?: Date; lte?: Date } = {};
+    if (filters.dateFrom) {
+      startAtFilter.gte = this.parseDateFilterBoundary(
+        filters.dateFrom,
+        'start',
+      );
+    }
+    if (filters.dateTo) {
+      startAtFilter.lte = this.parseDateFilterBoundary(filters.dateTo, 'end');
+    }
+    if (
+      startAtFilter.gte &&
+      startAtFilter.lte &&
+      startAtFilter.gte > startAtFilter.lte
+    ) {
+      throw new BadRequestException(
+        'dateFrom must be before or equal to dateTo',
+      );
+    }
+
+    const district = filters.district?.trim();
+
+    return this.prisma.booking.findMany({
+      where: {
+        status: filters.status,
+        courtId: filters.courtId,
+        ...(Object.keys(startAtFilter).length > 0
+          ? { startAt: startAtFilter }
+          : {}),
+        court: {
+          complex: {
+            ownerId,
+            id: filters.complexId,
+            district: district
+              ? {
+                  equals: district,
+                  mode: 'insensitive',
+                }
+              : undefined,
+          },
+        },
+      },
+      orderBy: { startAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        court: {
+          select: {
+            id: true,
+            name: true,
+            sport: true,
+            complex: {
+              select: {
+                id: true,
+                name: true,
+                district: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async cancel(userId: string, bookingId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
@@ -218,6 +327,39 @@ export class BookingsService {
       throw new ForbiddenException('Not your booking');
 
     if (booking.status === 'CANCELLED') return booking;
+
+    return this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'CANCELLED' },
+    });
+  }
+
+  async ownerCancel(ownerId: string, bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        status: true,
+        endAt: true,
+        court: {
+          select: {
+            complex: {
+              select: { ownerId: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.court.complex.ownerId !== ownerId) {
+      throw new ForbiddenException('Booking does not belong to your complexes');
+    }
+
+    if (booking.status === 'CANCELLED') return booking;
+    if (booking.endAt <= new Date()) {
+      throw new BadRequestException('Cannot cancel a past booking');
+    }
 
     return this.prisma.booking.update({
       where: { id: bookingId },
