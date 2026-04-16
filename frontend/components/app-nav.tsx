@@ -21,14 +21,14 @@ export default function AppNav() {
     let cancelled = false;
     async function loadMe() {
       const token = authStorage.getToken();
+      if (!cancelled) setHasToken(Boolean(token));
+
       if (!token) {
         if (!cancelled) {
           setRole(null);
-          setHasToken(false);
         }
         return;
       }
-      if (!cancelled) setHasToken(true);
 
       try {
         const me = await apiFetch<AuthMe>("/auth/me");
