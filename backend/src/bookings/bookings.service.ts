@@ -221,10 +221,10 @@ export class BookingsService {
     const where: Prisma.BookingWhereInput = { userId };
 
     if (parsedScope === 'active') {
-      where.status = { in: ['PENDING', 'CONFIRMED'] as BookingStatus[] };
+      where.status = { in: ['PENDING', 'CONFIRMED'] };
       where.endAt = { gt: now };
     } else if (parsedScope === 'history') {
-      where.OR = [{ status: 'CANCELLED' as BookingStatus }, { endAt: { lte: now } }];
+      where.OR = [{ status: 'CANCELLED' }, { endAt: { lte: now } }];
     }
 
     const bookings = await this.prisma.booking.findMany({
