@@ -31,19 +31,19 @@
 $ npm install
 ```
 
-## Seed de desarrollo
+## Development seed
 
 ```bash
 $ npx prisma migrate dev
 $ npm run db:seed
 ```
 
-Credenciales dev:
+Dev credentials:
 
 - OWNER: `owner.dev@pichangaya.local` / `Owner123!`
 - USER: `user.dev@pichangaya.local` / `User123!`
 
-El seed es idempotente: crea/actualiza OWNER y USER, un complejo demo del OWNER, una cancha y reglas semanales (7 días) de `12:00` a `22:00` con `slotMin=60`.
+The seed is idempotent: it creates/updates an OWNER and USER, one demo complex for the OWNER, one court, and weekly rules for all days of the week (7 days, Sunday=0 through Saturday=6) from `12:00` to `22:00` with `slotMin=60`.
 
 ## Compile and run the project
 
@@ -71,18 +71,18 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
-## Verificación manual rápida (availability + durations)
+## Quick manual verification (availability + durations)
 
-1. Login como OWNER y configurar horario semanal (si aplica):
-   - `POST /courts/:courtId/schedule/weekly-default` con `{ "start":"12:00", "end":"22:00", "slotMin":60 }`
-2. Consultar disponibilidad:
+1. Login as OWNER and configure weekly schedule (only if you test a court different from the seeded one):
+   - `POST /courts/:courtId/schedule/weekly-default` with `{ "start":"12:00", "end":"22:00", "slotMin":60 }`
+2. Query availability:
    - `GET /courts/:courtId/availability?date=YYYY-MM-DD`
    - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=60`
    - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=90`
    - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=120`
-3. Crear reserva de 90 min:
-   - `POST /bookings` con `{ "courtId":"...", "date":"YYYY-MM-DD", "startLocal":"14:00", "durationMin":90 }`
-4. Volver a consultar availability y confirmar que `durationOptionsMin` y `available` se reducen correctamente.
+3. Create a 90-minute booking:
+   - `POST /bookings` with `{ "courtId":"...", "date":"YYYY-MM-DD", "startLocal":"14:00", "durationMin":90 }`
+4. Query availability again and confirm that `durationOptionsMin` and `available` are reduced accordingly.
 
 ## Deployment
 

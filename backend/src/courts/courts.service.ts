@@ -46,14 +46,14 @@ export class CourtsService {
     durationMin?: number,
   ): Promise<AvailabilityResponse> {
     const durationsAllowedMin = [...ALLOWED_BOOKING_DURATIONS_MIN];
+    const durationsAllowedSet = new Set<number>(durationsAllowedMin);
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new BadRequestException('date must be YYYY-MM-DD');
     }
     if (
       durationMin !== undefined &&
-      (!Number.isInteger(durationMin) ||
-        !durationsAllowedMin.includes(durationMin as 60 | 90 | 120))
+      (!Number.isInteger(durationMin) || !durationsAllowedSet.has(durationMin))
     ) {
       throw new BadRequestException(
         `durationMin must be one of: ${durationsAllowedMin.join(', ')}`,
@@ -171,9 +171,15 @@ export class CourtsService {
           const selected = checksByDuration.find(
             (c) => c.durationMin === durationMin,
           );
-          available = selected?.available ?? false;
-          reason = selected?.available ? undefined : selected?.reason;
-          bookingId = selected?.bookingId ?? null;
+          if (!selected) {
+            available = false;
+            reason = 'OUTSIDE_SCHEDULE';
+            bookingId = null;
+          } else {
+            available = selected.available;
+            reason = selected.available ? undefined : selected.reason;
+            bookingId = selected.bookingId;
+          }
         } else if (!available) {
           const booked = checksByDuration.find((c) => c.reason === 'BOOKED');
           if (booked) {
@@ -201,8 +207,11 @@ export class CourtsService {
     }
 
     const distinctSlotMins = new Set(rules.map((r) => r.slotMin ?? 60));
+    const firstSlotMin = distinctSlotMins.values().next().value;
     const effectiveSlotMin =
-      distinctSlotMins.size === 1 ? [...distinctSlotMins][0] : null;
+      distinctSlotMins.size === 1 && firstSlotMin !== undefined
+        ? firstSlotMin
+        : null;
 
     return {
       date,
