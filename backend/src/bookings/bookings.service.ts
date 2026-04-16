@@ -205,6 +205,7 @@ export class BookingsService {
   }
 
   async pay(userId: string, bookingId: string, reference?: string) {
+    // MVP simulated payment: upsert payment and confirm booking in one transaction.
     if (reference !== undefined) {
       const normalizedReference = reference.trim();
       if (

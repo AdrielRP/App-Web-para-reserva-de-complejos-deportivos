@@ -31,3 +31,4 @@ Se usa `localStorage` para guardar el token JWT (`auth_token`) y `apiFetch` agre
 ## Nota
 
 Esta estrategia es simple para MVP. No usa cookies httpOnly todavía.
+Para producción, migrar a cookies httpOnly + refresh token para reducir exposición ante XSS.
