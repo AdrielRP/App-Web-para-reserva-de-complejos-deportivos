@@ -178,10 +178,7 @@ export default function BookingsPage() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     className="rounded border px-3 py-1 text-sm disabled:opacity-50"
-                    disabled={
-                      booking.status === "CANCELLED" ||
-                      new Date(booking.endAt).getTime() <= Date.now()
-                    }
+                    disabled={booking.status === "CANCELLED"}
                     onClick={() => void cancelBooking(booking.id)}
                     type="button"
                   >
