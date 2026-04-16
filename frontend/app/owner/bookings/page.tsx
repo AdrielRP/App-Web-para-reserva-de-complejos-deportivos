@@ -114,7 +114,7 @@ export default function OwnerBookingsPage() {
         if (err instanceof ApiError || err instanceof Error) {
           setError(err.message);
         } else {
-          setError("No se pudo cargar la página");
+          setError("No se pudieron cargar los complejos");
         }
       } finally {
         setCheckingRole(false);

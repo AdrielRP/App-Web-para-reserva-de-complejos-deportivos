@@ -24,7 +24,7 @@ export class BookingsService {
     if (scope === undefined) return undefined;
     if (scope === 'active' || scope === 'history') return scope;
 
-    throw new BadRequestException('scope must be active or history');
+    throw new BadRequestException('Scope must be either "active" or "history"');
   }
 
   private parseDateFilterBoundary(
