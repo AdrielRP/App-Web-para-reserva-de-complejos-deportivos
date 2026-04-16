@@ -82,7 +82,9 @@ $ npm run test:cov
    - `GET /courts/:courtId/availability?date=YYYY-MM-DD&durationMin=120`
 3. Create a 90-minute booking:
    - `POST /bookings` with `{ "courtId":"...", "date":"YYYY-MM-DD", "startLocal":"14:00", "durationMin":90 }`
-4. Query availability again and confirm that `durationOptionsMin` and `available` are reduced accordingly.
+4. Simulate payment and confirm booking:
+   - `POST /bookings/:id/pay` with optional body `{ "reference": "sim-123" }`
+5. Query availability again and confirm that `durationOptionsMin` and `available` are reduced accordingly.
 
 ## Deployment
 

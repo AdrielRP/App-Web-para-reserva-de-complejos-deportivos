@@ -202,4 +202,57 @@ export class BookingsService {
       data: { status: 'CANCELLED' },
     });
   }
+
+  async pay(userId: string, bookingId: string, reference?: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        priceSubtotal: true,
+        commissionAmt: true,
+      },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.userId !== userId)
+      throw new ForbiddenException('Not your booking');
+    if (booking.status === 'CANCELLED') {
+      throw new BadRequestException('Cannot pay a cancelled booking');
+    }
+
+    const amount = booking.priceSubtotal + booking.commissionAmt;
+
+    await this.prisma.$transaction([
+      this.prisma.payment.upsert({
+        where: { bookingId },
+        create: {
+          bookingId,
+          provider: 'SIMULATED',
+          status: 'PAID',
+          amount,
+          reference,
+        },
+        update: {
+          provider: 'SIMULATED',
+          status: 'PAID',
+          amount,
+          reference,
+        },
+      }),
+      this.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          totalPaid: amount,
+          status: 'CONFIRMED',
+        },
+      }),
+    ]);
+
+    return this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { payment: true },
+    });
+  }
 }
