@@ -15,16 +15,20 @@ type AuthMe = {
 export default function AppNav() {
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
-  const hasToken = Boolean(authStorage.getToken());
+  const [hasToken, setHasToken] = useState(() => Boolean(authStorage.getToken()));
 
   useEffect(() => {
     let cancelled = false;
     async function loadMe() {
       const token = authStorage.getToken();
       if (!token) {
-        if (!cancelled) setRole(null);
+        if (!cancelled) {
+          setRole(null);
+          setHasToken(false);
+        }
         return;
       }
+      if (!cancelled) setHasToken(true);
 
       try {
         const me = await apiFetch<AuthMe>("/auth/me");
@@ -32,7 +36,10 @@ export default function AppNav() {
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           authStorage.clearToken();
-          if (!cancelled) setRole(null);
+          if (!cancelled) {
+            setRole(null);
+            setHasToken(false);
+          }
         }
       }
     }

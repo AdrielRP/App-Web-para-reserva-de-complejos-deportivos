@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import AppNav from "@/components/app-nav";
@@ -45,7 +45,7 @@ export default function BookingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  async function loadBookings(tab: BookingTab) {
+  const loadBookings = useCallback(async (tab: BookingTab) => {
     setLoading(true);
     setError(null);
     try {
@@ -60,7 +60,7 @@ export default function BookingsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     async function checkRole() {
@@ -94,7 +94,7 @@ export default function BookingsPage() {
   useEffect(() => {
     if (!authorized) return;
     void loadBookings(activeTab);
-  }, [authorized, activeTab]);
+  }, [authorized, activeTab, loadBookings]);
 
   async function cancelBooking(bookingId: string) {
     setError(null);
