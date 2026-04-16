@@ -172,3 +172,76 @@ describe('BookingsService.owner', () => {
     expect(result).toMatchObject({ id: 'booking-1', status: 'CANCELLED' });
   });
 });
+
+describe('BookingsService.mine', () => {
+  const prismaMock = {
+    booking: {
+      findMany: jest.fn(),
+    },
+  };
+
+  let service: BookingsService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new BookingsService(prismaMock as never);
+    prismaMock.booking.findMany.mockResolvedValue([]);
+  });
+
+  it('keeps previous behavior without scope', async () => {
+    await service.mine('user-1');
+
+    expect(prismaMock.booking.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-1' },
+      }),
+    );
+  });
+
+  it('filters active scope as pending/confirmed and future endAt', async () => {
+    await service.mine('user-1', 'active');
+
+    const call = prismaMock.booking.findMany.mock.calls[0]?.[0];
+    expect(call.where.userId).toBe('user-1');
+    expect(call.where.status).toEqual({ in: ['PENDING', 'CONFIRMED'] });
+    expect(call.where.endAt).toMatchObject({ gt: expect.any(Date) });
+  });
+
+  it('filters history scope as cancelled or past endAt', async () => {
+    await service.mine('user-1', 'history');
+
+    const call = prismaMock.booking.findMany.mock.calls[0]?.[0];
+    expect(call.where.userId).toBe('user-1');
+    expect(call.where.OR).toEqual([
+      { status: 'CANCELLED' },
+      { endAt: { lte: expect.any(Date) } },
+    ]);
+  });
+
+  it('rejects invalid scope values', async () => {
+    await expect(service.mine('user-1', 'invalid')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('includes isPast in mine response', async () => {
+    prismaMock.booking.findMany.mockResolvedValueOnce([
+      {
+        id: 'booking-1',
+        userId: 'user-1',
+        status: 'PENDING',
+        startAt: new Date(),
+        endAt: new Date(Date.now() - 5 * 60 * 1000),
+      },
+    ]);
+
+    const result = await service.mine('user-1');
+
+    expect(result).toMatchObject([
+      {
+        id: 'booking-1',
+        isPast: true,
+      },
+    ]);
+  });
+});

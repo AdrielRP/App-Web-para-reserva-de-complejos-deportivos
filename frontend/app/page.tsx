@@ -1,4 +1,4 @@
-import Link from "next/link";
+import AppNav from "@/components/app-nav";
 
 export default function Home() {
   return (
@@ -8,17 +8,7 @@ export default function Home() {
         MVP integrado con backend para login, disponibilidad, reservas y pago
         simulado.
       </p>
-      <div className="flex flex-wrap gap-3">
-        <Link className="rounded border px-3 py-2" href="/login">
-          Login
-        </Link>
-        <Link className="rounded border px-3 py-2" href="/complexes">
-          Ver complejos
-        </Link>
-        <Link className="rounded border px-3 py-2" href="/bookings">
-          Mis reservas
-        </Link>
-      </div>
+      <AppNav />
     </main>
   );
 }

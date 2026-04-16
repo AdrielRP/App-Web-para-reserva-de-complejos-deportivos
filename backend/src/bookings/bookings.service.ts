@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { ALLOWED_BOOKING_DURATIONS_MIN } from './bookings.constants';
@@ -19,6 +19,13 @@ export class BookingsService {
   private MAX_DURATION_MIN = 120;
 
   constructor(private prisma: PrismaService) {}
+
+  private parseMineScope(scope?: string): 'active' | 'history' | undefined {
+    if (scope === undefined) return undefined;
+    if (scope === 'active' || scope === 'history') return scope;
+
+    throw new BadRequestException('Scope must be either "active" or "history"');
+  }
 
   private parseDateFilterBoundary(
     value: string,
@@ -207,9 +214,21 @@ export class BookingsService {
     });
   }
 
-  mine(userId: string) {
-    return this.prisma.booking.findMany({
-      where: { userId },
+  async mine(userId: string, scope?: string) {
+    const parsedScope = this.parseMineScope(scope);
+    const now = new Date();
+
+    const where: Prisma.BookingWhereInput = { userId };
+
+    if (parsedScope === 'active') {
+      where.status = { in: ['PENDING', 'CONFIRMED'] };
+      where.endAt = { gt: now };
+    } else if (parsedScope === 'history') {
+      where.OR = [{ status: 'CANCELLED' }, { endAt: { lte: now } }];
+    }
+
+    const bookings = await this.prisma.booking.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         court: {
@@ -225,6 +244,11 @@ export class BookingsService {
         },
       },
     });
+
+    return bookings.map((booking) => ({
+      ...booking,
+      isPast: booking.endAt <= now,
+    }));
   }
 
   ownerBookings(

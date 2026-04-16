@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
+import AppNav from "@/components/app-nav";
 
 type AvailabilitySlot = {
   startLocal: string;
@@ -92,9 +92,7 @@ export default function AvailabilityPage() {
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-8">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Disponibilidad</h1>
-        <Link className="rounded border px-3 py-2 text-sm" href="/bookings">
-          Mis reservas
-        </Link>
+        <AppNav />
       </div>
 
       <div className="flex flex-wrap gap-3">

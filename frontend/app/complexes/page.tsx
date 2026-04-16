@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
-import { authStorage } from "@/lib/authStorage";
+import AppNav from "@/components/app-nav";
 
 type Complex = {
   id: string;
@@ -40,21 +40,7 @@ export default function ComplexesPage() {
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-8">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Complejos</h1>
-        <Link className="rounded border px-3 py-2 text-sm" href="/bookings">
-          Mis reservas
-        </Link>
-        <Link className="rounded border px-3 py-2 text-sm" href="/owner/bookings">
-          Reservas owner
-        </Link>
-        <button
-          className="rounded border px-3 py-2 text-sm"
-          onClick={() => {
-            authStorage.clearToken();
-          }}
-          type="button"
-        >
-          Cerrar sesión
-        </button>
+        <AppNav />
       </div>
 
       {loading && <p>Cargando...</p>}
