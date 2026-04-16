@@ -218,19 +218,29 @@ export class BookingsService {
     const parsedScope = this.parseMineScope(scope);
     const now = new Date();
 
-    const where =
-      parsedScope === 'active'
-        ? {
-            userId,
-            status: { in: ['PENDING', 'CONFIRMED'] as BookingStatus[] },
-            endAt: { gt: now },
-          }
-        : parsedScope === 'history'
-          ? {
-              userId,
-              OR: [{ status: 'CANCELLED' as BookingStatus }, { endAt: { lte: now } }],
-            }
-          : { userId };
+    let where:
+      | {
+          userId: string;
+          status?: { in: BookingStatus[] };
+          endAt?: { gt: Date };
+          OR?: Array<{ status: BookingStatus } | { endAt: { lte: Date } }>;
+        }
+      | {
+          userId: string;
+        } = { userId };
+
+    if (parsedScope === 'active') {
+      where = {
+        userId,
+        status: { in: ['PENDING', 'CONFIRMED'] as BookingStatus[] },
+        endAt: { gt: now },
+      };
+    } else if (parsedScope === 'history') {
+      where = {
+        userId,
+        OR: [{ status: 'CANCELLED' as BookingStatus }, { endAt: { lte: now } }],
+      };
+    }
 
     return this.prisma.booking.findMany({
       where,

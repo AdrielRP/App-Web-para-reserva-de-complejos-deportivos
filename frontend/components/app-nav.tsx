@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api";
 import { authStorage } from "@/lib/authStorage";
@@ -13,7 +13,6 @@ type AuthMe = {
 };
 
 export default function AppNav() {
-  const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const hasToken = Boolean(authStorage.getToken());
@@ -42,7 +41,7 @@ export default function AppNav() {
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, []);
 
   function logout() {
     authStorage.clearToken();
