@@ -207,7 +207,7 @@ export class CourtsService {
     }
 
     const distinctSlotMins = new Set(rules.map((r) => r.slotMin ?? 60));
-    const firstSlotMin = distinctSlotMins.values().next().value;
+    const [firstSlotMin] = distinctSlotMins;
     const effectiveSlotMin =
       distinctSlotMins.size === 1 && firstSlotMin !== undefined
         ? firstSlotMin

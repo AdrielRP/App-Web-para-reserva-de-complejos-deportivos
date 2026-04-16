@@ -1,6 +1,15 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 
+type FindManyWhere = {
+  where: {
+    userId?: string;
+    status?: { in: string[] };
+    endAt?: { gt?: Date; lte?: Date };
+    OR?: Array<{ status?: string } | { endAt?: { lte?: Date } }>;
+  };
+};
+
 describe('BookingsService.pay', () => {
   const prismaMock = {
     booking: {
@@ -201,20 +210,24 @@ describe('BookingsService.mine', () => {
   it('filters active scope as pending/confirmed and future endAt', async () => {
     await service.mine('user-1', 'active');
 
-    const call = prismaMock.booking.findMany.mock.calls[0]?.[0];
-    expect(call.where.userId).toBe('user-1');
-    expect(call.where.status).toEqual({ in: ['PENDING', 'CONFIRMED'] });
-    expect(call.where.endAt).toMatchObject({ gt: expect.any(Date) });
+    const call = (
+      prismaMock.booking.findMany.mock.calls[0] as [FindManyWhere]
+    )[0];
+    expect(call.where?.userId).toBe('user-1');
+    expect(call.where?.status).toEqual({ in: ['PENDING', 'CONFIRMED'] });
+    expect(call.where?.endAt).toMatchObject({ gt: expect.any(Date) as Date });
   });
 
   it('filters history scope as cancelled or past endAt', async () => {
     await service.mine('user-1', 'history');
 
-    const call = prismaMock.booking.findMany.mock.calls[0]?.[0];
-    expect(call.where.userId).toBe('user-1');
-    expect(call.where.OR).toEqual([
+    const call = (
+      prismaMock.booking.findMany.mock.calls[0] as [FindManyWhere]
+    )[0];
+    expect(call.where?.userId).toBe('user-1');
+    expect(call.where?.OR).toEqual([
       { status: 'CANCELLED' },
-      { endAt: { lte: expect.any(Date) } },
+      { endAt: { lte: expect.any(Date) as Date } },
     ]);
   });
 

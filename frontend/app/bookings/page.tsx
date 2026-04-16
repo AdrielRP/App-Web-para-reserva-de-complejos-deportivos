@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import AppNav from "@/components/app-nav";
@@ -44,20 +44,25 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
   const loadBookings = useCallback(async (tab: BookingTab) => {
+    const requestId = ++latestRequestIdRef.current;
     setLoading(true);
     setError(null);
     try {
       const data = await apiFetch<Booking[]>(`/bookings/mine?scope=${getScope(tab)}`);
+      if (requestId !== latestRequestIdRef.current) return;
       setBookings(data);
     } catch (err) {
+      if (requestId !== latestRequestIdRef.current) return;
       if (err instanceof ApiError || err instanceof Error) {
         setError(err.message);
       } else {
         setError("No se pudieron cargar las reservas");
       }
     } finally {
+      if (requestId !== latestRequestIdRef.current) return;
       setLoading(false);
     }
   }, []);
@@ -93,6 +98,7 @@ export default function BookingsPage() {
 
   useEffect(() => {
     if (!authorized) return;
+    setBookings([]);
     void loadBookings(activeTab);
   }, [authorized, activeTab, loadBookings]);
 
@@ -185,14 +191,16 @@ export default function BookingsPage() {
                   >
                     Cancelar
                   </button>
-                  <button
-                    className="rounded border px-3 py-1 text-sm disabled:opacity-50"
-                    disabled={booking.status !== "PENDING"}
-                    onClick={() => void payBooking(booking.id)}
-                    type="button"
-                  >
-                    Pagar (simulado)
-                  </button>
+                  {activeTab === "ACTIVE" && (
+                    <button
+                      className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+                      disabled={booking.status !== "PENDING"}
+                      onClick={() => void payBooking(booking.id)}
+                      type="button"
+                    >
+                      Pagar (simulado)
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
