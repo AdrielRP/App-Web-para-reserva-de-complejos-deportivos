@@ -27,6 +27,17 @@ type AuthMe = {
 
 type BookingTab = "ACTIVE" | "HISTORY";
 
+function createEmptyBookingsByTab(): Record<BookingTab, Booking[]> {
+  return {
+    ACTIVE: [],
+    HISTORY: [],
+  };
+}
+const TAB_INDICATOR_EDGE_OFFSET = 4;
+const TAB_INDICATOR_HALF_GAP = 2;
+const TAB_INDICATOR_SPRING_STIFFNESS = 400;
+const TAB_INDICATOR_SPRING_DAMPING = 34;
+
 function generatePaymentReference() {
   const randomSuffix = Math.random().toString(36).slice(2, 8);
   return `sim-${Date.now()}-${randomSuffix}`;
@@ -38,13 +49,16 @@ function getScope(tab: BookingTab) {
 
 export default function BookingsPage() {
   const router = useRouter();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookingsByTab, setBookingsByTab] = useState<Record<BookingTab, Booking[]>>(
+    createEmptyBookingsByTab,
+  );
   const [activeTab, setActiveTab] = useState<BookingTab>("ACTIVE");
   const [authorized, setAuthorized] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [bookingActionId, setBookingActionId] = useState<string | null>(null);
   const latestRequestIdRef = useRef(0);
   const latestAbortRef = useRef<AbortController | null>(null);
 
@@ -60,7 +74,7 @@ export default function BookingsPage() {
         signal: abortController.signal,
       });
       if (requestId !== latestRequestIdRef.current) return;
-      setBookings(data);
+      setBookingsByTab((current) => ({ ...current, [tab]: data }));
     } catch (err) {
       if (abortController.signal.aborted) return;
       if (requestId !== latestRequestIdRef.current) return;
@@ -118,6 +132,7 @@ export default function BookingsPage() {
   async function cancelBooking(bookingId: string) {
     setError(null);
     setMessage(null);
+    setBookingActionId(bookingId);
     try {
       await apiFetch(`/bookings/${bookingId}/cancel`, { method: "PATCH" });
       setMessage("Reserva cancelada");
@@ -128,12 +143,15 @@ export default function BookingsPage() {
       } else {
         setError("No se pudo cancelar la reserva");
       }
+    } finally {
+      setBookingActionId(null);
     }
   }
 
   async function payBooking(bookingId: string) {
     setError(null);
     setMessage(null);
+    setBookingActionId(bookingId);
     try {
       await apiFetch(`/bookings/${bookingId}/pay`, {
         method: "POST",
@@ -147,6 +165,8 @@ export default function BookingsPage() {
       } else {
         setError("No se pudo pagar la reserva");
       }
+    } finally {
+      setBookingActionId(null);
     }
   }
 
@@ -159,6 +179,8 @@ export default function BookingsPage() {
     }
     return "border-rose-500/40 bg-rose-500/10 text-rose-300";
   }
+
+  const visibleBookings = bookingsByTab[activeTab];
 
   return (
     <motion.main
@@ -188,10 +210,20 @@ export default function BookingsPage() {
               className="absolute bottom-1 top-1 rounded-full bg-emerald-500/20"
               layout
               style={{
-                left: activeTab === "ACTIVE" ? 4 : "calc(50% + 2px)",
-                right: activeTab === "ACTIVE" ? "calc(50% + 2px)" : 4,
+                left:
+                  activeTab === "ACTIVE"
+                    ? TAB_INDICATOR_EDGE_OFFSET
+                    : `calc(50% + ${TAB_INDICATOR_HALF_GAP}px)`,
+                right:
+                  activeTab === "ACTIVE"
+                    ? `calc(50% + ${TAB_INDICATOR_HALF_GAP}px)`
+                    : TAB_INDICATOR_EDGE_OFFSET,
               }}
-              transition={{ type: "spring", stiffness: 400, damping: 34 }}
+              transition={{
+                type: "spring",
+                stiffness: TAB_INDICATOR_SPRING_STIFFNESS,
+                damping: TAB_INDICATOR_SPRING_DAMPING,
+              }}
             />
             <button
               className="relative z-10 rounded-full px-4 py-2 text-sm font-medium text-zinc-100"
@@ -213,18 +245,25 @@ export default function BookingsPage() {
 
           <motion.ul
             className="grid gap-3"
-            initial={false}
-            transition={{ staggerChildren: 0.05 }}
+            initial="hidden"
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.05 } },
+            }}
+            animate="visible"
           >
             <AnimatePresence mode="wait">
-              {bookings.map((booking) => (
+              {visibleBookings.map((booking) => (
                 <motion.li
-                  animate={{ opacity: 1, y: 0 }}
                   className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4"
                   exit={{ opacity: 0, y: -6 }}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial="hidden"
                   key={booking.id}
                   layout
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
                   transition={{ duration: 0.2 }}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -250,14 +289,16 @@ export default function BookingsPage() {
                   {activeTab === "ACTIVE" && booking.status === "PENDING" && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
-                        className="rounded-xl border border-zinc-700 px-3 py-2 text-sm text-zinc-100 transition hover:border-rose-400 hover:text-rose-300"
+                        className="rounded-xl border border-zinc-700 px-3 py-2 text-sm text-zinc-100 transition hover:border-rose-400 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={bookingActionId === booking.id}
                         onClick={() => void cancelBooking(booking.id)}
                         type="button"
                       >
                         Cancelar
                       </button>
                       <button
-                        className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-sm text-emerald-200 transition hover:bg-emerald-500/20"
+                        className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-sm text-emerald-200 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={bookingActionId === booking.id}
                         onClick={() => void payBooking(booking.id)}
                         type="button"
                       >
@@ -269,7 +310,7 @@ export default function BookingsPage() {
               ))}
             </AnimatePresence>
           </motion.ul>
-          {!loading && bookings.length === 0 && (
+          {!loading && visibleBookings.length === 0 && (
             <p className="text-sm text-zinc-400">No hay reservas en esta sección.</p>
           )}
         </>

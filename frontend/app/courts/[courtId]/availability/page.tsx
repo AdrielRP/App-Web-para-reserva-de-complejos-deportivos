@@ -186,9 +186,9 @@ export default function AvailabilityPage() {
         initial="hidden"
         variants={{
           hidden: {},
-          show: { transition: { staggerChildren: 0.04 } },
+          visible: { transition: { staggerChildren: 0.04 } },
         }}
-        animate="show"
+        animate="visible"
       >
         {(data?.slots ?? []).map((slot) => (
           <motion.li
@@ -196,7 +196,7 @@ export default function AvailabilityPage() {
             key={`${slot.startLocal}-${slot.endLocal}`}
             variants={{
               hidden: { opacity: 0, y: 8 },
-              show: { opacity: 1, y: 0 },
+              visible: { opacity: 1, y: 0 },
             }}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
